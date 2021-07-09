@@ -1,7 +1,9 @@
 package ch.epfl.scala.services
 
-import ch.epfl.scala.index.model.Project
+import scala.concurrent.Future
+
+import ch.epfl.scala.index.newModel.NewProject
 
 trait Database {
-  def getProject(id: String): Option[Project]
+  def insetProject(p: NewProject): Future[NewProject]
 }

@@ -47,7 +47,7 @@ object Server {
 
     // the DataRepository will not be closed until the end of the process,
     // because of the sbtResolver mode
-    val data = DataRepository.open()
+    val data = DataRepository.open(db)
 
     val searchPages = new SearchPages(data, session)
     val userFacingRoutes = concat(
@@ -112,11 +112,10 @@ object Server {
     log.info("ready")
 
     if (config.production) {
-      db.migrate().unsafeRunSync()
+      db.createTables().unsafeRunSync()
     } else {
       db.dropTables().unsafeRunSync()
-      db.migrate().unsafeRunSync()
-      db.insertMockData().unsafeRunSync()
+      db.createTables().unsafeRunSync()
       log.info("Mock data for database has been inserted")
     }
 

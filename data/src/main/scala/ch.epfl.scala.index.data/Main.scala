@@ -15,6 +15,8 @@ import ch.epfl.scala.index.data.elastic.SeedElasticSearch
 import ch.epfl.scala.index.data.github.GithubDownload
 import ch.epfl.scala.index.data.maven.DownloadParentPoms
 import ch.epfl.scala.index.data.util.PidLock
+import ch.epfl.scala.services.storage.sql.DbConf
+import ch.epfl.scala.services.storage.sql.ScaladexRepo
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 
@@ -48,6 +50,10 @@ object Main extends LazyLogging {
   def run(args: Array[String]): Unit = {
     val config = ConfigFactory.load().getConfig("org.scala_lang.index.data")
     val production = config.getBoolean("production")
+    val dbConf = DbConf.from(config.getString("database-url")).get
+    val db = new ScaladexRepo(dbConf)
+    db.dropTables().unsafeRunSync()
+    db.createTables().unsafeRunSync()
 
     if (production) {
       PidLock.create("DATA")
@@ -92,7 +98,7 @@ object Main extends LazyLogging {
       Step("github")(() => GithubDownload.run(dataPaths)),
       // Re-create the ElasticSearch index
       Step("elastic") { () =>
-        SeedElasticSearch.run(dataPaths)
+        SeedElasticSearch.run(dataPaths, db)
       }
     )
 

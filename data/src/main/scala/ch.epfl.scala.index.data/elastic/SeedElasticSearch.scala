@@ -11,6 +11,7 @@ import ch.epfl.scala.index.data.github.GithubDownload
 import ch.epfl.scala.index.data.maven.PomsReader
 import ch.epfl.scala.index.data.project._
 import ch.epfl.scala.index.search.DataRepository
+import ch.epfl.scala.services.storage.sql.ScaladexRepo
 import com.typesafe.scalalogging.LazyLogging
 
 class SeedElasticSearch(
@@ -39,11 +40,13 @@ class SeedElasticSearch(
     allData.foreach { case (project, releases, dependencies) =>
       logger.info(s"indexing ${project.reference}")
       val indexProjectF = dataRepository.insertProject(project)
+      val newProjectsF = dataRepository.insertProjectDb(project)
       val indexReleasesF = dataRepository.insertReleases(releases)
       val indexDependenciesF = dataRepository.insertDependencies(dependencies)
 
       val indexAll = for {
         _ <- indexProjectF
+        projectIds <- newProjectsF
         releasesResult <- indexReleasesF
         dependenciesResult <- indexDependenciesF
       } yield {
@@ -65,9 +68,11 @@ class SeedElasticSearch(
 }
 
 object SeedElasticSearch {
-  def run(dataPaths: DataPaths)(implicit sys: ActorSystem): Unit = {
+  def run(dataPaths: DataPaths, db: ScaladexRepo)(implicit
+      sys: ActorSystem
+  ): Unit = {
     import sys.dispatcher
-    Using.resource(DataRepository.open()) { dataRepository =>
+    Using.resource(DataRepository.open(db)) { dataRepository =>
       val githubDownload = new GithubDownload(dataPaths)
       val seed =
         new SeedElasticSearch(dataPaths, githubDownload, dataRepository)

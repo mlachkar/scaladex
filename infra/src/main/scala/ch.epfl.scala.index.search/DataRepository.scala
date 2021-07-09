@@ -1,15 +1,15 @@
 package ch.epfl.scala.index.search
 
 import java.io.Closeable
-
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-
 import ch.epfl.scala.index.model._
 import ch.epfl.scala.index.model.misc.Pagination
 import ch.epfl.scala.index.model.misc._
 import ch.epfl.scala.index.model.release._
+import ch.epfl.scala.index.newModel.NewProject
 import ch.epfl.scala.index.search.mapping._
+import ch.epfl.scala.services.storage.sql.ScaladexRepo
 import com.sksamuel.elastic4s.ElasticClient
 import com.sksamuel.elastic4s.ElasticDsl
 import com.sksamuel.elastic4s.ElasticProperties
@@ -34,6 +34,7 @@ import com.typesafe.scalalogging.LazyLogging
  */
 class DataRepository(
     esClient: ElasticClient,
+    db: ScaladexRepo,
     indexPrefix: String
 )(implicit
     ec: ExecutionContext
@@ -137,6 +138,11 @@ class DataRepository(
           .source(project)
       )
       .map(_ => ())
+  }
+
+  def insertProjectDb(project: Project): Future[NewProject] = {
+    val newProject = NewProject.from(project)
+    db.insetProject(newProject)
   }
 
   def updateProject(project: Project): Future[Unit] = {
@@ -562,12 +568,12 @@ object DataRepository extends LazyLogging with SearchProtocol {
     ConfigFactory.load().getConfig("org.scala_lang.index.data")
   private lazy val indexName = config.getString("index")
 
-  def open()(implicit ec: ExecutionContext): DataRepository = {
+  def open(db: ScaladexRepo)(implicit ec: ExecutionContext): DataRepository = {
     logger.info(s"Using elasticsearch index: $indexName")
 
     val props = ElasticProperties("http://localhost:9200")
     val esClient = ElasticClient(JavaClient(props))
-    new DataRepository(esClient, indexName)
+    new DataRepository(esClient, db, indexName)
   }
 
   private def gitHubStarScoring(query: Query): Query = {

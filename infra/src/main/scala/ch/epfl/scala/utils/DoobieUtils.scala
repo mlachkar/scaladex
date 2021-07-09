@@ -1,9 +1,9 @@
 package ch.epfl.scala.utils
 
 import scala.concurrent.ExecutionContext
-
 import cats.effect.ContextShift
 import cats.effect.IO
+import ch.epfl.scala.index.newModel.NewProject
 import ch.epfl.scala.services.storage.sql.DbConf
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -11,6 +11,9 @@ import doobie._
 import doobie.implicits._
 import doobie.util.fragment.Fragment
 import org.flywaydb.core.Flyway
+import org.h2.Driver
+
+import java.sql.DriverManager
 
 object DoobieUtils {
   private implicit val cs: ContextShift[IO] =
@@ -65,6 +68,11 @@ object DoobieUtils {
         where: Fragment
     ): Fragment =
       buildSelect(table, fields) ++ space ++ where
+  }
+  def killH2(): doobie.Update0 = (fr"SHUTDOWN").update
 
+  object Mappings {
+    implicit val projectIdMeta: Meta[NewProject.Id] =
+      Meta[String].timap(NewProject.Id.from(_).get)(_.value)
   }
 }
